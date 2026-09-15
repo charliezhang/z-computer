@@ -11,4 +11,16 @@ dev:
 db-reset:
 	rm -rf backend/data
 
-.PHONY: install dev db-reset
+infra:
+	bash deploy/ec2-up.sh
+
+deploy:
+	bash deploy/deploy.sh
+
+ssh:
+	. deploy/instance.env && ssh ubuntu@$$HOST
+
+logs:
+	. deploy/instance.env && ssh ubuntu@$$HOST sudo journalctl -u z-backend -f
+
+.PHONY: install dev db-reset infra deploy ssh logs

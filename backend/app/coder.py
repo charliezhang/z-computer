@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from claude_agent_sdk import (
-    AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, ThinkingBlock,
+    AssistantMessage, ClaudeAgentOptions, ResultMessage, StreamEvent, TextBlock, ThinkingBlock,
     ToolResultBlock, ToolUseBlock, UserMessage, query,
 )
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -36,12 +36,13 @@ def _options(app: dict) -> ClaudeAgentOptions:
         resume=app.get("agent_session_id"),
         max_turns=100,
         thinking={"type": "adaptive", "display": "summarized"},
+        include_partial_messages=True,  # stream thinking/text deltas so Studio shows live progress
         env={k: v for k in ("ANTHROPIC_API_KEY",) if (v := os.environ.get(k))},
     )
 
 
 async def run_turn(app_id: str, prompt: str) -> AsyncIterator[dict]:
-    """Run one Z-Coder turn; yield and persist every event (thinking included)."""
+    """Run one Z-Coder turn; yield and persist every event (thinking included). `delta` events are live-only."""
     app = get_app(app_id)
     run_id = uuid.uuid4().hex
     seq = 0
@@ -58,7 +59,17 @@ async def run_turn(app_id: str, prompt: str) -> AsyncIterator[dict]:
     yield emit("user_prompt", {"text": prompt})
     try:
         async for msg in query(prompt=prompt, options=_options(app)):
-            if isinstance(msg, AssistantMessage):
+            if isinstance(msg, StreamEvent):
+                # Transient, not persisted: the complete block arrives later as a thinking/text event.
+                ev = msg.event
+                if ev.get("type") == "content_block_delta":
+                    d = ev.get("delta", {})
+                    chunk = d.get("thinking") if d.get("type") == "thinking_delta" else d.get("text") if d.get("type") == "text_delta" else None
+                    if chunk:
+                        yield {"kind": "delta", "payload": {"index": ev.get("index", 0),
+                                                            "block": "thinking" if d["type"] == "thinking_delta" else "text",
+                                                            "text": chunk}}
+            elif isinstance(msg, AssistantMessage):
                 for block in msg.content:
                     if isinstance(block, ThinkingBlock) and block.thinking:
                         yield emit("thinking", {"text": block.thinking})

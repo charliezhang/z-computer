@@ -29,3 +29,15 @@ Open http://localhost:5173, passcode `ZC123`.
 3. Publish. Home → Child opens Z-Computer in a new tab; the app appears in the grid.
 4. Agent trace is persisted: `sqlite3 backend/data/z.db 'select kind,count(*) from agent_events group by kind'`.
 5. Bundle download: `GET /api/apps/<id>/bundle.zab` (header `X-Z-Token`).
+
+## Deploy (AWS EC2)
+
+Uses the `zc` AWS CLI profile (override with `AWS_PROFILE`). One t3.small Ubuntu box runs Caddy (auto HTTPS on
+`<ip>.sslip.io`, serves the built frontend, proxies `/api` and `/ws`) and the backend as a systemd service.
+
+```
+make infra     # once: key pair from ~/.ssh/id_ed25519.pub, security group, instance, Elastic IP -> deploy/instance.env
+make deploy    # every time: rsync repo + backend/.env, install/build on the box, restart services
+make logs      # tail backend logs
+make ssh
+```

@@ -52,6 +52,7 @@ function StudioInner() {
 
 function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) {
   const [events, setEvents] = useState<AgentEvent[]>([]);
+  const [live, setLive] = useState<Record<number, { block: string; text: string }>>({});
   const [files, setFiles] = useState<AppFiles | null>(null);
   const [tab, setTab] = useState<'preview' | 'history' | 'client.js' | 'server.js' | 'manifest.json'>('preview');
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -71,7 +72,7 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
     loadFiles();
     loadVersions();
   }, [appId]);
-  useEffect(() => { traceRef.current?.scrollTo(0, traceRef.current.scrollHeight); }, [events]);
+  useEffect(() => { traceRef.current?.scrollTo(0, traceRef.current.scrollHeight); }, [events, live]);
 
   function send() {
     const text = prompt.trim();
@@ -82,6 +83,13 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
     ws.onopen = () => ws.send(JSON.stringify({ prompt: text }));
     ws.onmessage = (e) => {
       const ev: AgentEvent = JSON.parse(e.data);
+      if (ev.kind === 'delta') {
+        // Live partial block; replaced by the persisted thinking/text event when the block completes.
+        const { index, block, text } = ev.payload;
+        setLive((prev) => ({ ...prev, [index]: { block, text: (prev[index]?.text || '') + text } }));
+        return;
+      }
+      setLive({});
       setEvents((prev) => [...prev, ev]);
       if (ev.kind === 'result' || ev.kind === 'error') {
         ws.close();
@@ -91,7 +99,7 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
         onChanged();
       }
     };
-    ws.onerror = () => setBusy(false);
+    ws.onerror = () => { setBusy(false); setLive({}); };
   }
 
   async function publish() {
@@ -125,6 +133,11 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
         <div className="pane-head"><b>Z-Coder</b><span className="grow" />{busy && <small>working…</small>}</div>
         <div className="trace" ref={traceRef}>
           {events.map((e, i) => <EventRow key={i} e={e} />)}
+          {Object.keys(live).map(Number).sort((a, b) => a - b).map((i) => live[i].block === 'thinking' ? (
+            <details key={'live' + i} className="ev thinking live" open><summary>💭 thinking…</summary><pre>{live[i].text}<span className="cursor" /></pre></details>
+          ) : (
+            <div key={'live' + i} className="ev text live">{live[i].text}<span className="cursor" /></div>
+          ))}
         </div>
         <div className="composer">
           <textarea placeholder="Describe the app you want, e.g. 'A 10-question times-table quiz for a 3rd grader'"
