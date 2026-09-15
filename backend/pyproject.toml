@@ -1,0 +1,14 @@
+[project]
+name = "z-studio-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "claude-agent-sdk",
+  "quickjs",
+  "python-dotenv",
+]
+
+[tool.uv]
+package = false
