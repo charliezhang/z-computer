@@ -30,6 +30,9 @@ input, textarea { font: inherit; }
 .ev.result { background: #dcfce7; font-size: 13px; }
 .ev.error { background: #fee2e2; color: #b91c1c; }
 .composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #e5e7eb; background: #fff; }
+.composer-side { display: flex; flex-direction: column; gap: 4px; }
+.composer-side select { font-size: 12px; padding: 2px 4px; border-radius: 6px; border: 1px solid #d1d5db; background: #fff; }
+.ev .meta { display: block; margin-top: 4px; color: #6b7280; font-size: 11px; }
 .composer textarea { flex: 1; resize: none; height: 64px; padding: 8px; border-radius: 8px; border: 1px solid #d1d5db; }
 .tabs button { padding: 4px 10px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; }
 .tabs button.active { background: #1f2937; color: #fff; }

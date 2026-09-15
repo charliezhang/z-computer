@@ -21,12 +21,18 @@ router = APIRouter()
 PROMPT = (Path(__file__).parent / "zcoder_prompt.md").read_text()
 _locks: dict[str, asyncio.Lock] = {}
 
+MODELS = ["claude-opus-4-6", "claude-opus-4-7", "claude-opus-4-8", "claude-opus-5", "claude-sonnet-4-6", "claude-sonnet-5", "claude-haiku-4-5"]
+EFFORTS = ["low", "medium", "high", "xhigh", "max"]
+DEFAULT_MODEL, DEFAULT_EFFORT = "claude-opus-5", "high"
+
 # The CLI refuses to start nested inside another Claude Code session; this server is not one.
 os.environ.pop("CLAUDECODE", None)
 
 
-def _options(app: dict) -> ClaudeAgentOptions:
+def _options(app: dict, model: str, effort: str) -> ClaudeAgentOptions:
     return ClaudeAgentOptions(
+        model=model,
+        effort=effort,
         cwd=str(workspace(app["id"])),
         system_prompt=PROMPT,
         allowed_tools=["Read", "Write", "Edit", "Glob", "Grep"],
@@ -41,7 +47,7 @@ def _options(app: dict) -> ClaudeAgentOptions:
     )
 
 
-async def run_turn(app_id: str, prompt: str) -> AsyncIterator[dict]:
+async def run_turn(app_id: str, prompt: str, model: str = DEFAULT_MODEL, effort: str = DEFAULT_EFFORT) -> AsyncIterator[dict]:
     """Run one Z-Coder turn; yield and persist every event (thinking included). `delta` events are live-only."""
     app = get_app(app_id)
     run_id = uuid.uuid4().hex
@@ -56,9 +62,9 @@ async def run_turn(app_id: str, prompt: str) -> AsyncIterator[dict]:
                    (app_id, run_id, seq, ev["ts"], kind, json.dumps(payload, default=str)))
         return ev
 
-    yield emit("user_prompt", {"text": prompt})
+    yield emit("user_prompt", {"text": prompt, "model": model, "effort": effort})
     try:
-        async for msg in query(prompt=prompt, options=_options(app)):
+        async for msg in query(prompt=prompt, options=_options(app, model, effort)):
             if isinstance(msg, StreamEvent):
                 # Transient, not persisted: the complete block arrives later as a thinking/text event.
                 ev = msg.event
@@ -89,7 +95,9 @@ async def run_turn(app_id: str, prompt: str) -> AsyncIterator[dict]:
                 yield emit("result", {"session_id": msg.session_id, "num_turns": msg.num_turns,
                                       "duration_ms": msg.duration_ms, "total_cost_usd": msg.total_cost_usd,
                                       "is_error": msg.is_error, "text": msg.result,
-                                      "revision": rev["number"] if rev else None})
+                                      "revision": rev["number"] if rev else None,
+                                      "models": sorted(msg.model_usage or {})})
+                break  # the turn is complete; release the per-app lock without waiting for the CLI to exit
     except Exception as e:
         yield emit("error", {"message": f"{type(e).__name__}: {e}"})
 
@@ -110,8 +118,10 @@ async def ws_studio(ws: WebSocket, app_id: str, token: str = ""):
             if lock.locked():
                 await ws.send_json({"kind": "error", "payload": {"message": "Z-Coder is still working on this app"}})
                 continue
+            model = frame.get("model") if frame.get("model") in MODELS else DEFAULT_MODEL
+            effort = frame.get("effort") if frame.get("effort") in EFFORTS else DEFAULT_EFFORT
             async with lock:
-                async for ev in run_turn(app_id, prompt):
+                async for ev in run_turn(app_id, prompt, model, effort):
                     await ws.send_json(ev)
     except WebSocketDisconnect:
         pass

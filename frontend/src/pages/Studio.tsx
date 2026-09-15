@@ -60,6 +60,8 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
   const [selectedRev, setSelectedRev] = useState<number | null>(null);
   const [diff, setDiff] = useState<RevisionDiff | null>(null);
   const [prompt, setPrompt] = useState('');
+  const [model, setModel] = useState('claude-opus-5');
+  const [effort, setEffort] = useState('high');
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [published, setPublished] = useState<number | null>(null);
@@ -80,7 +82,7 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
     setBusy(true);
     setPrompt('');
     const ws = new WebSocket(wsUrl(`/ws/studio/${appId}`));
-    ws.onopen = () => ws.send(JSON.stringify({ prompt: text }));
+    ws.onopen = () => ws.send(JSON.stringify({ prompt: text, model, effort }));
     ws.onmessage = (e) => {
       const ev: AgentEvent = JSON.parse(e.data);
       if (ev.kind === 'delta') {
@@ -143,7 +145,15 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
           <textarea placeholder="Describe the app you want, e.g. 'A 10-question times-table quiz for a 3rd grader'"
             value={prompt} onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
-          <button className="btn" disabled={busy} onClick={send}>Send</button>
+          <div className="composer-side">
+            <select value={model} onChange={(e) => setModel(e.target.value)} title="Model">
+              {MODELS.map((m) => <option key={m} value={m}>{m.replace('claude-', '')}</option>)}
+            </select>
+            <select value={effort} onChange={(e) => setEffort(e.target.value)} title="Effort">
+              {EFFORTS.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <button className="btn" disabled={busy} onClick={send}>Send</button>
+          </div>
         </div>
       </div>
       <div className="pane">
@@ -220,10 +230,13 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
   );
 }
 
+const MODELS = ['claude-opus-4-6', 'claude-opus-4-7', 'claude-opus-4-8', 'claude-opus-5', 'claude-sonnet-4-6', 'claude-sonnet-5', 'claude-haiku-4-5'];
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+
 function EventRow({ e }: { e: AgentEvent }) {
   const p = e.payload;
   switch (e.kind) {
-    case 'user_prompt': return <div className="ev user_prompt">{p.text}</div>;
+    case 'user_prompt': return <div className="ev user_prompt">{p.text}{p.model && <small className="meta">{String(p.model).replace('claude-', '')} · {p.effort}</small>}</div>;
     case 'text': return <div className="ev text">{p.text}</div>;
     case 'thinking': return <details className="ev thinking"><summary>💭 thinking</summary><pre>{p.text}</pre></details>;
     case 'tool_use': {

@@ -70,6 +70,9 @@ Design rules:
 
 # Process
 
-1. Read `manifest.json`, `client.js` and `server.js` first. On follow-up requests, modify the existing app rather than rewriting from scratch unless asked.
-2. Implement the request completely in this turn. Keep `manifest.json` name/icon/description in sync with what you built.
-3. Finish with a two-sentence plain-language summary for the creator: what the app does now and what changed. No code in the summary.
+1. Read `manifest.json`, `client.js`, `server.js` and `prompts.json` first. On follow-up requests, modify the existing app rather than rewriting from scratch unless asked.
+2. Think briefly. Decide the design in a few sentences, then start writing; do not deliberate over alternatives or re-plan mid-turn. These apps are small, so a short plan is enough.
+3. Implement the request completely in this turn. Keep `manifest.json` name/icon/description in sync with what you built.
+4. Never rewrite a file you already wrote in this turn. Once `Write` has produced a file, every further change to it in the same turn must be a targeted `Edit`. On follow-up turns, prefer `Edit` and use `Write` only when most of the file changes.
+5. Do not re-read a file you just wrote or edited to check it; trust your edits. Verification reads are unnecessary.
+6. Finish with exactly two plain sentences for the creator: what the app does now, and what changed. No lists, no headings, no code, no caveats.
