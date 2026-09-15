@@ -54,7 +54,7 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [live, setLive] = useState<Record<number, { block: string; text: string }>>({});
   const [files, setFiles] = useState<AppFiles | null>(null);
-  const [tab, setTab] = useState<'preview' | 'history' | 'client.js' | 'server.js' | 'manifest.json'>('preview');
+  const [tab, setTab] = useState<'preview' | 'history' | 'client.js' | 'server.js' | 'prompts.json' | 'manifest.json'>('preview');
   const [sourceOpen, setSourceOpen] = useState(false);
   const [versions, setVersions] = useState<Revision[]>([]);
   const [selectedRev, setSelectedRev] = useState<number | null>(null);
@@ -154,7 +154,7 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
             onClick={() => { if (sourceOpen && tab !== 'preview' && tab !== 'history') setTab('preview'); setSourceOpen(!sourceOpen); }}>
             {sourceOpen ? '▾' : '▸'} Source
           </button>
-          {sourceOpen && (['client.js', 'server.js', 'manifest.json'] as const).map((t) => (
+          {sourceOpen && (['client.js', 'server.js', 'prompts.json', 'manifest.json'] as const).map((t) => (
             <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>
           ))}
           <span className="grow" />
@@ -213,7 +213,7 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
           </div>
           )
         ) : (
-          <pre className="code">{files ? (tab === 'manifest.json' ? JSON.stringify(files.manifest, null, 2) : tab === 'client.js' ? files.client_js : files.server_js) : ''}</pre>
+          <pre className="code">{files ? (tab === 'manifest.json' ? JSON.stringify(files.manifest, null, 2) : tab === 'prompts.json' ? JSON.stringify(files.prompts, null, 2) : tab === 'client.js' ? files.client_js : files.server_js) : ''}</pre>
         )}
       </div>
     </>

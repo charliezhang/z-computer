@@ -138,6 +138,7 @@ def create_app(body: CreateIn) -> dict:
     (d / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (d / "client.js").write_text(BOOTSTRAP_CLIENT)
     (d / "server.js").write_text(BOOTSTRAP_SERVER)
+    (d / "prompts.json").write_text("{}\n")
     db.execute("INSERT INTO apps (id, name, icon, status, created_at, updated_at) VALUES (?,?,?,?,?,?)",
                (app_id, body.name, "📦", "draft", now(), now()))
     snapshot(app_id, "initial", "New app from template")
@@ -211,7 +212,8 @@ def revision_texts(app_id: str, number: int) -> dict[str, str]:
     if not rev:
         raise HTTPException(404, f"no revision v{number}")
     b = read_bundle(rev["zab"])
-    texts = {"manifest.json": json.dumps(b["manifest"], indent=2) + "\n", "client.js": b["client_js"], "server.js": b["server_js"]}
+    texts = {"manifest.json": json.dumps(b["manifest"], indent=2) + "\n", "client.js": b["client_js"], "server.js": b["server_js"],
+             "prompts.json": json.dumps(b["prompts"], indent=2) + "\n"}
     for name, data in b["assets"].items():
         try:
             texts[f"assets/{name}"] = data.decode()

@@ -9,7 +9,8 @@
  *     code and `data:`/`blob:` media (i.e. bundled assets) are allowed.
  *  3. The bootstrap intercepts link clicks and reports CSP violations to the host as sandbox errors.
  * The only way out is postMessage to the host (AppFrame.tsx), which owns the single WebSocket to the backend and
- * mediates the platform primitives (camera, speech) on the app's behalf.
+ * mediates the platform primitives (camera, speech, and reactToImage, which the host forwards over that
+ * same WebSocket so the backend runs the AI call with the app's persisted prompt).
  */
 export const CLIENT_CSP = [
   "default-src 'none'",
@@ -43,7 +44,8 @@ export function buildSrcdoc(clientJs: string, assets: Record<string, string>): s
     onReady: function (f) { if (ready) f(); else readyHandlers.push(f); },
     asset: function (n) { return assets[n] || ''; },
     takePicture: function (opts) { return call('takePicture', opts); },
-    recognizeSpeech: function (opts) { return call('recognizeSpeech', opts); }
+    recognizeSpeech: function (opts) { return call('recognizeSpeech', opts); },
+    reactToImage: function (image, promptId) { return call('reactToImage', { image: image, promptId: promptId }); }
   };
   window.addEventListener('message', function (e) {
     var m = e.data; if (!m || !m.z) return;

@@ -7,6 +7,7 @@ The working directory is a Z App Bundle workspace. It contains only:
 - `manifest.json` — `{ "id", "name", "icon", "description", "version", "zab_version" }`. Keep `name` (short, kid-friendly), `icon` (one emoji) and `description` (one sentence) accurate for the app you built. Never change `id`, `version` or `zab_version`.
 - `client.js` — the kid-facing UI. Runs in the browser inside a sandboxed iframe.
 - `server.js` — the trusted logic. Runs inside Z-runtime (a QuickJS engine on the platform server).
+- `prompts.json` — the AI prompts your app may use through `Z.reactToImage`. A JSON object keyed by prompt id: `{ "identify": { "prompt": "...", "max_tokens": 150 } }`. Prompts run on the platform server, never in the browser, so the child never sees them.
 - `assets/` — optional small text-based files you may write (SVG, JSON, TXT). No binaries.
 
 Never create, rename or delete other files. Never write outside this directory.
@@ -22,7 +23,11 @@ client.js:
 - `Z.asset(name)` — returns a `data:` URL for `assets/<name>` (usable as an `<img src>`)
 - `Z.takePicture()` — returns a Promise resolving to a JPEG `data:` URL captured by the platform camera (at most 640px wide). Show it with `<img src>` or send it to server.js with `Z.send`. Rejects if the camera is unavailable or the user declines.
 - `Z.recognizeSpeech({ lang: 'en-US' })` — returns a Promise resolving to the transcript of one spoken phrase heard by the platform microphone. Rejects if nothing is heard or the browser lacks support.
-- Both primitives must be triggered by a tap on a button (show "Listening…" / "Say cheese!" feedback) and must handle rejection with a friendly message.
+- `Z.reactToImage(imageDataUrl, promptId)` — returns a Promise resolving to the text the platform AI produced for that image using the prompt `prompts.json[promptId]`. Takes about 1–3 seconds. The image is processed on the fly and never stored. Rejects if the prompt id is missing or the image is invalid.
+- Browser text-to-speech via `speechSynthesis` is allowed and encouraged for reading AI text aloud to young children.
+- All three primitives must be triggered by a tap on a button (show "Listening…" / "Say cheese!" / "Thinking…" feedback) and must handle rejection with a friendly message.
+
+Writing prompts for `prompts.json`: address the model directly, say the reader is a young child, demand 1–3 short plain sentences (they will be read aloud), and forbid markdown. When you need structured data (for example a quiz), ask for strict JSON with the exact keys you will parse, nothing else, and parse it defensively in client.js. Do not put trusted answer-checking in the prompt output alone; send the AI's JSON to server.js if the score matters.
 - Render into the existing `<div id="app">` using normal DOM APIs. Inline CSS via a `<style>` element you append is fine.
 
 server.js:

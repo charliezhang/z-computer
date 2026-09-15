@@ -7,7 +7,10 @@ A controlled ecosystem where parents and teachers "vibe create" educational mini
 - **Z-runtime**: each app's `server.js` runs in QuickJS inside the FastAPI process; its `client.js` runs in a
   sandboxed iframe. They talk only over one platform-managed WebSocket.
 - **Z-Computer** (`/#/computer`): kid-facing thin client that lists and runs published apps.
-- Apps are stored as `.zab` bundles (zip: `manifest.json`, `client.js`, `server.js`, `assets/`) in SQLite.
+- Apps are stored as `.zab` bundles (zip: `manifest.json`, `client.js`, `server.js`, `prompts.json`, `assets/`) in SQLite.
+- Client primitives: `Z.send/onMessage/onReady/asset`, `Z.takePicture()`, `Z.recognizeSpeech()`, and
+  `Z.reactToImage(image, promptId)`, which the host relays over the app's WebSocket so the backend runs a fast
+  multimodal call (Claude Haiku) with the prompt persisted in the bundle's `prompts.json`. Images are never stored.
 - Every successful Z-Coder turn snapshots the workspace as a new **revision**. **Publish** points the app's live
   pointer at the latest revision (what Z-Computer serves). **History** in Studio tags the live revision and can
   **revert** the draft to any earlier revision (recorded as a new revision; re-publish to make it live).

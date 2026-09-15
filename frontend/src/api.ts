@@ -4,7 +4,7 @@ export type AppRow = {
 };
 export type AppFiles = {
   manifest: { id: string; name: string; icon: string; description: string; version: number };
-  client_js: string; server_js: string; assets: Record<string, string>;
+  client_js: string; server_js: string; prompts: Record<string, unknown>; assets: Record<string, string>;
 };
 export type Revision = { id: number; number: number; source: string; summary: string; created_at: string; name: string; icon: string; live: boolean };
 export type RevisionDiff = { from: number; to: number; files: { name: string; diff: string }[] };

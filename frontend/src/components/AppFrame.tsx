@@ -30,6 +30,7 @@ export default function AppFrame({ appId, mode, reloadKey = 0 }: { appId: string
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data);
       if (m.type === 'msg') frame()?.postMessage({ z: 'msg', data: m.data }, '*');
+      else if (m.type === 'primitive_result') frame()?.postMessage({ z: 'result', id: m.id, ok: m.ok, value: m.value, error: m.error }, '*');
       else if (m.type === 'error') setErr(m.message);
     };
     const onMsg = (e: MessageEvent) => {
@@ -38,6 +39,11 @@ export default function AppFrame({ appId, mode, reloadKey = 0 }: { appId: string
       if (m?.z === 'hello') { frameReady = true; sendReady(); }
       else if (m?.z === 'msg' && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'msg', data: m.data }));
       else if (m?.z === 'clienterror') setErr('client.js error: ' + m.message);
+      else if (m?.z === 'call' && m.name === 'reactToImage') {
+        // Backend-side primitive: relayed over the app's single WebSocket; answered by a primitive_result frame.
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'primitive', id: m.id, name: m.name, args: m.args }));
+        else frame()?.postMessage({ z: 'result', id: m.id, ok: false, error: 'not connected' }, '*');
+      }
       else if (m?.z === 'call') {
         runPrimitive(m.name, m.args).then(
           (value) => frame()?.postMessage({ z: 'result', id: m.id, ok: true, value }, '*'),

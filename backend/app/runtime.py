@@ -1,6 +1,7 @@
 """Z-runtime: hosts an app's server.js in QuickJS and bridges it to one client over one WebSocket."""
 import asyncio
 import json
+import time
 
 import quickjs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -8,6 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from . import db
 from .apps import load_files
 from .auth import ws_token_ok
+from .vision import react_to_image
 
 router = APIRouter()
 
@@ -78,6 +80,9 @@ async def ws_app(ws: WebSocket, app_id: str, token: str = "", mode: str = "draft
     try:
         while True:
             frame = await ws.receive_json()
+            if frame.get("type") == "primitive":
+                await ws.send_json(await run_primitive(app_id, mode, frame))
+                continue
             if frame.get("type") != "msg":
                 continue
             try:
@@ -89,3 +94,23 @@ async def ws_app(ws: WebSocket, app_id: str, token: str = "", mode: str = "draft
                 await ws.send_json({"type": "msg", "data": data})
     except WebSocketDisconnect:
         pass
+
+
+async def run_primitive(app_id: str, mode: str, frame: dict) -> dict:
+    """Platform primitives that need the backend (today: reactToImage). Prompts come from the app's prompts.json."""
+    rid, name, args = frame.get("id"), frame.get("name"), frame.get("args") or {}
+    try:
+        if name != "reactToImage":
+            raise ValueError(f"unknown primitive: {name}")
+        prompt_id = str(args.get("promptId", ""))
+        spec = load_files(app_id, mode)["prompts"].get(prompt_id)
+        if spec is None:
+            raise ValueError(f"no prompt '{prompt_id}' in prompts.json")
+        prompt = spec["prompt"] if isinstance(spec, dict) else str(spec)
+        max_tokens = int(spec.get("max_tokens", 300)) if isinstance(spec, dict) else 300
+        t0 = time.monotonic()
+        text = await react_to_image(prompt, args.get("image", ""), max_tokens=max_tokens)
+        print(f"[app {app_id}] reactToImage '{prompt_id}' {time.monotonic() - t0:.1f}s {len(text)} chars", flush=True)
+        return {"type": "primitive_result", "id": rid, "ok": True, "value": text}
+    except Exception as e:
+        return {"type": "primitive_result", "id": rid, "ok": False, "error": f"{type(e).__name__}: {e}"}

@@ -8,6 +8,7 @@ dependencies = [
   "claude-agent-sdk",
   "quickjs",
   "python-dotenv",
+  "anthropic>=1.5.0",
 ]
 
 [tool.uv]
