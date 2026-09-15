@@ -1,5 +1,6 @@
 """App CRUD, draft workspace, revision history (.zab snapshots), publish pointer, revert."""
 import base64
+import difflib
 import json
 import mimetypes
 import secrets
@@ -192,6 +193,44 @@ def revert(app_id: str, number: int) -> dict:
     unpack(rev["zab"], workspace(app_id))
     new = snapshot(app_id, "revert", f"Reverted to v{number}")
     return {"version": new["number"]}
+
+
+@router.post("/{app_id}/revisions/{number}/promote")
+def promote(app_id: str, number: int) -> dict:
+    """Point production at an existing revision (no snapshot; the draft workspace is untouched)."""
+    get_app(app_id)
+    rev = db.one("SELECT id FROM revisions WHERE app_id=? AND number=?", (app_id, number))
+    if not rev:
+        raise HTTPException(404, "no such revision")
+    db.execute("UPDATE apps SET status='published', live_revision_id=?, updated_at=? WHERE id=?", (rev["id"], now(), app_id))
+    return {"version": number}
+
+
+def revision_texts(app_id: str, number: int) -> dict[str, str]:
+    rev = db.one("SELECT zab FROM revisions WHERE app_id=? AND number=?", (app_id, number))
+    if not rev:
+        raise HTTPException(404, f"no revision v{number}")
+    b = read_bundle(rev["zab"])
+    texts = {"manifest.json": json.dumps(b["manifest"], indent=2) + "\n", "client.js": b["client_js"], "server.js": b["server_js"]}
+    for name, data in b["assets"].items():
+        try:
+            texts[f"assets/{name}"] = data.decode()
+        except UnicodeDecodeError:
+            texts[f"assets/{name}"] = f"<binary {len(data)} bytes>\n"
+    return texts
+
+
+@router.get("/{app_id}/revisions/{a}/diff/{b}")
+def diff(app_id: str, a: int, b: int) -> dict:
+    """Unified diff of every bundle file from revision a to revision b."""
+    get_app(app_id)
+    fa, fb = revision_texts(app_id, a), revision_texts(app_id, b)
+    files = []
+    for name in sorted(set(fa) | set(fb)):
+        d = "".join(difflib.unified_diff(fa.get(name, "").splitlines(keepends=True), fb.get(name, "").splitlines(keepends=True),
+                                         fromfile=f"v{a}/{name}", tofile=f"v{b}/{name}", n=3))
+        files.append({"name": name, "diff": d})
+    return {"from": a, "to": b, "files": files}
 
 
 @router.get("/{app_id}/bundle.zab")

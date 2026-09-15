@@ -11,7 +11,7 @@ export default function Home() {
           <button className="big-icon" style={{ background: '#4f46e5' }} onClick={() => nav('/studio')}>
             <span>🛠️</span>Creator
           </button>
-          <button className="big-icon" style={{ background: '#059669' }} onClick={() => window.open('/computer', '_blank')}>
+          <button className="big-icon" style={{ background: '#059669' }} onClick={() => window.open('#/computer', '_blank')}>
             <span>🧒</span>Child
           </button>
         </div>

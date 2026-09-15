@@ -7,6 +7,7 @@ export type AppFiles = {
   client_js: string; server_js: string; assets: Record<string, string>;
 };
 export type Revision = { id: number; number: number; source: string; summary: string; created_at: string; name: string; icon: string; live: boolean };
+export type RevisionDiff = { from: number; to: number; files: { name: string; diff: string }[] };
 export type AgentEvent = { run_id: string; seq: number; ts: string; kind: string; payload: any };
 
 export const getToken = () => sessionStorage.getItem('z_token') || '';

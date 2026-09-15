@@ -41,6 +41,13 @@ input, textarea { font: inherit; }
 .version-head { display: flex; align-items: center; gap: 8px; }
 .version small { color: #6b7280; }
 .version .summary { margin-top: 4px; color: #374151; white-space: pre-wrap; max-height: 4.5em; overflow: hidden; }
+.version .diff-btn { visibility: hidden; }
+.history.has-selection .version:not(.selected):hover .diff-btn { visibility: visible; }
+.promote-btn { background: #16a34a; }
+.udiff { margin: 6px 0 0; font-size: 12px; background: #0f172a; color: #e2e8f0; padding: 8px; border-radius: 6px; overflow-x: auto; }
+.udiff .add { background: #14532d; color: #bbf7d0; }
+.udiff .del { background: #7f1d1d; color: #fecaca; }
+.udiff .hunk { color: #93c5fd; }
 .badge { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #e5e7eb; color: #374151; text-transform: uppercase; }
 .badge.live { background: #16a34a; color: #fff; }
 .tabs .btn.secondary { background: #e5e7eb; color: #1f2937; }

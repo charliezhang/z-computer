@@ -1,9 +1,27 @@
 """SQLite access. One short-lived connection per call; WAL mode handles concurrency."""
+import os
 import sqlite3
+import tempfile
 from contextlib import closing
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+def _pick_data_dir() -> Path:
+    """Z_DATA_DIR if set; else backend/data; else the temp dir when that is not writable."""
+    if os.environ.get("Z_DATA_DIR"):
+        return Path(os.environ["Z_DATA_DIR"])
+    default = Path(__file__).resolve().parent.parent / "data"
+    try:
+        default.mkdir(parents=True, exist_ok=True)
+        probe = default / ".write-test"
+        probe.touch()
+        probe.unlink()
+        return default
+    except OSError:
+        return Path(tempfile.gettempdir()) / "z-data"
+
+
+DATA_DIR = _pick_data_dir()
 DB_PATH = DATA_DIR / "z.db"
 APPS_DIR = DATA_DIR / "apps"
 

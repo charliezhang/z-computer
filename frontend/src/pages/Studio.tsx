@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AgentEvent, api, AppFiles, AppRow, Revision, wsUrl } from '../api';
+import { AgentEvent, api, AppFiles, AppRow, Revision, RevisionDiff, wsUrl } from '../api';
 import AppFrame from '../components/AppFrame';
 import PasscodeGate from '../components/PasscodeGate';
 
@@ -57,6 +57,7 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
   const [sourceOpen, setSourceOpen] = useState(false);
   const [versions, setVersions] = useState<Revision[]>([]);
   const [selectedRev, setSelectedRev] = useState<number | null>(null);
+  const [diff, setDiff] = useState<RevisionDiff | null>(null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -100,6 +101,17 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
     onChanged();
   }
 
+  async function promote(number: number) {
+    const r = await api<{ version: number }>(`/api/apps/${appId}/revisions/${number}/promote`, { method: 'POST' });
+    setPublished(r.version);
+    loadVersions();
+    onChanged();
+  }
+
+  async function showDiff(from: number, to: number) {
+    setDiff(await api<RevisionDiff>(`/api/apps/${appId}/revisions/${from}/diff/${to}`));
+  }
+
   async function revert(number: number) {
     await api(`/api/apps/${appId}/revisions/${number}/revert`, { method: 'POST' });
     await Promise.all([loadFiles(), loadVersions()]);
@@ -140,9 +152,29 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
         {tab === 'preview' ? (
           <div className="preview"><AppFrame appId={appId} mode="draft" reloadKey={reloadKey} /></div>
         ) : tab === 'history' ? (
-          <div className="history">
-            {versions.map((v, i) => (
-              <div key={v.id} className={'version' + (v.live ? ' live' : '') + (v.id === selectedRev ? ' selected' : '')}
+          diff ? (
+          <div className="history diff-view">
+            <div className="version-head">
+              <b>Diff v{diff.from} → v{diff.to}</b><span className="grow" />
+              <button className="btn secondary" onClick={() => setDiff(null)}>← Back</button>
+            </div>
+            {diff.files.filter((f) => f.diff).length === 0 && <p>No differences.</p>}
+            {diff.files.filter((f) => f.diff).map((f) => (
+              <div key={f.name} className="version">
+                <b>{f.name}</b>
+                <pre className="udiff">{f.diff.split('\n').map((line, i) => (
+                  <div key={i} className={line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : line.startsWith('@@') ? 'hunk' : ''}>{line || ' '}</div>
+                ))}</pre>
+              </div>
+            ))}
+          </div>
+          ) : (
+          <div className={'history' + (selectedRev !== null ? ' has-selection' : '')}>
+            {versions.map((v, i) => {
+              const sel = versions.find((x) => x.id === selectedRev);
+              const isSel = v.id === selectedRev;
+              return (
+              <div key={v.id} className={'version' + (v.live ? ' live' : '') + (isSel ? ' selected' : '')}
                 onClick={() => setSelectedRev(v.id)}>
                 <div className="version-head">
                   <b>v{v.number}</b> {v.icon} {v.name}
@@ -150,13 +182,23 @@ function Editor({ appId, onChanged }: { appId: string; onChanged: () => void }) 
                   {v.live && <span className="badge live">LIVE</span>}
                   {i === 0 && <span className="badge">draft</span>}
                   <span className="grow" />
-                  {i > 0 && <button className="btn secondary" onClick={() => revert(v.number)}>Revert to v{v.number}</button>}
+                  {sel && !isSel && (
+                    <button className="btn secondary diff-btn" title={`Diff v${sel.number} → v${v.number}`}
+                      onClick={(e) => { e.stopPropagation(); showDiff(sel.number, v.number); }}>± Diff</button>
+                  )}
+                  {isSel && !v.live && (
+                    <button className="btn promote-btn" title="Make this revision live"
+                      onClick={(e) => { e.stopPropagation(); promote(v.number); }}>↑ Promote live</button>
+                  )}
+                  {i > 0 && <button className="btn secondary" onClick={(e) => { e.stopPropagation(); revert(v.number); }}>Revert to v{v.number}</button>}
                 </div>
                 <small>{new Date(v.created_at).toLocaleString()}</small>
                 <div className="summary">{v.summary}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
+          )
         ) : (
           <pre className="code">{files ? (tab === 'manifest.json' ? JSON.stringify(files.manifest, null, 2) : tab === 'client.js' ? files.client_js : files.server_js) : ''}</pre>
         )}

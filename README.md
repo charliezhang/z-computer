@@ -2,11 +2,11 @@
 
 A controlled ecosystem where parents and teachers "vibe create" educational mini-apps.
 
-- **Z-Studio** (`/studio`): lovable-like authoring UI. Talks to **Z-Coder**, a headless Claude Code agent
+- **Z-Studio** (`/#/studio`): lovable-like authoring UI. Talks to **Z-Coder**, a headless Claude Code agent
   (Python Agent SDK) constrained to the Z-platform primitives.
 - **Z-runtime**: each app's `server.js` runs in QuickJS inside the FastAPI process; its `client.js` runs in a
   sandboxed iframe. They talk only over one platform-managed WebSocket.
-- **Z-Computer** (`/computer`): kid-facing thin client that lists and runs published apps.
+- **Z-Computer** (`/#/computer`): kid-facing thin client that lists and runs published apps.
 - Apps are stored as `.zab` bundles (zip: `manifest.json`, `client.js`, `server.js`, `assets/`) in SQLite.
 - Every successful Z-Coder turn snapshots the workspace as a new **revision**. **Publish** points the app's live
   pointer at the latest revision (what Z-Computer serves). **History** in Studio tags the live revision and can
