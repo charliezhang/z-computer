@@ -5,7 +5,8 @@ A controlled ecosystem where parents and teachers "vibe create" educational mini
 - **Z-Studio** (`/#/studio`): lovable-like authoring UI. Talks to **Z-Coder**, a headless Claude Code agent
   (Python Agent SDK) constrained to the Z-platform primitives.
 - **Z-runtime**: each app's `server.js` runs in QuickJS inside the FastAPI process; its `client.js` runs in a
-  sandboxed iframe. They talk only over one platform-managed WebSocket.
+  sandboxed iframe. They talk only over one platform-managed WebSocket. `Z.state` is scoped to that connection,
+  so the Studio preview and each child's play session start fresh and never share data.
 - **Z-Computer** (`/#/computer`): kid-facing thin client that lists and runs published apps.
 - Apps are stored as `.zab` bundles (zip: `manifest.json`, `client.js`, `server.js`, `prompts.json`, `assets/`) in SQLite.
 - Client primitives: `Z.send/onMessage/onReady/asset`, `Z.takePicture()`, `Z.recognizeSpeech()`, and

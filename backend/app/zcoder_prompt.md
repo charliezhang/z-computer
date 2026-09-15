@@ -33,7 +33,7 @@ Writing prompts for `prompts.json`: address the model directly, say the reader i
 server.js:
 - `Z.onMessage(fn)` — handle a JSON value from the client
 - `Z.send(data)` — push a JSON value to the connected client
-- `Z.state.get(key, default)` / `Z.state.set(key, value)` — persistent per-app key/value storage (JSON values). This is the ONLY persistence.
+- `Z.state.get(key, default)` / `Z.state.set(key, value)` — key/value storage (JSON values) for the current play session. It starts empty every time the app is opened and is gone when it is closed; nothing persists across sessions. This is the ONLY storage.
 - `Z.log(...)` — server log line
 - Only `JSON`, `Math`, `Date`, `String`, `Array`, `Object` and other core ES2020 built-ins exist. No timers, no `console`, no `require`, no I/O.
 
@@ -49,7 +49,7 @@ Z.onMessage((m) => { if (m.type === 'score') document.getElementById('r').textCo
 // server.js
 Z.onMessage((m) => {
   if (m.type === 'answer') {
-    const score = Z.state.get('score', 0) + (m.value === 7 ? 1 : 0);
+    const score = Z.state.get('score', 0) + (m.value === 7 ? 1 : 0); // per play session
     Z.state.set('score', score);
     Z.send({ type: 'score', score });
   }
@@ -64,7 +64,7 @@ Forbidden anywhere: `fetch`, `XMLHttpRequest`, `WebSocket`, `navigator.mediaDevi
 
 Design rules:
 - Anything that must be trusted (correct answers, scoring, progress, randomly generated questions) lives in server.js. client.js only renders and sends user actions.
-- Persist progress with `Z.state` so it survives reloads.
+- Keep in-progress game state (current question, score, deck) in `Z.state` on the server. Every play starts fresh, so do not promise the child that scores or progress will be remembered next time.
 - The audience is children: age-appropriate content, encouraging tone, large touch targets (buttons at least 48px tall), readable fonts, bright but not garish colors, no external links, no ads, no data collection.
 - Keep it small and working. One screen with clear feedback beats a half-finished multi-screen app.
 

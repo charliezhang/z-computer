@@ -55,12 +55,6 @@ CREATE TABLE IF NOT EXISTS agent_events (
   kind TEXT NOT NULL,
   payload_json TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS app_state (
-  app_id TEXT NOT NULL,
-  key TEXT NOT NULL,
-  value_json TEXT NOT NULL,
-  PRIMARY KEY (app_id, key)
-);
 """
 
 

@@ -6,7 +6,6 @@ import time
 import quickjs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from . import db
 from .apps import load_files
 from .auth import ws_token_ok
 from .vision import react_to_image
@@ -35,11 +34,16 @@ var Z = (function () {
 
 
 class ServerScript:
-    """One QuickJS context per connection. Outbound messages are queued and drained by the caller."""
+    """One QuickJS context per connection. Outbound messages are queued and drained by the caller.
+
+    Z.state is scoped to this play session: it lives in memory for the life of the WebSocket, so the Studio
+    preview, each child's play, and every reload start from a fresh state and never see each other's data.
+    """
 
     def __init__(self, app_id: str, code: str):
         self.app_id = app_id
         self.outbox: list = []
+        self.state: dict[str, str] = {}
         ctx = self.ctx = quickjs.Context()
         ctx.set_memory_limit(32 * 1024 * 1024)
         ctx.set_max_stack_size(1024 * 1024)
@@ -51,12 +55,10 @@ class ServerScript:
         ctx.eval(code)
 
     def _state_get(self, key: str) -> str:
-        row = db.one("SELECT value_json FROM app_state WHERE app_id=? AND key=?", (self.app_id, key))
-        return row["value_json"] if row else ""
+        return self.state.get(key, "")
 
     def _state_set(self, key: str, value_json: str) -> None:
-        db.execute("INSERT OR REPLACE INTO app_state (app_id, key, value_json) VALUES (?,?,?)",
-                   (self.app_id, key, value_json))
+        self.state[key] = value_json
 
     def dispatch(self, data) -> list:
         self.ctx.eval(f"Z.__dispatch({json.dumps(json.dumps(data))})")
